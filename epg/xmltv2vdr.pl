@@ -2,7 +2,7 @@
 
 # xmltv2vdr.pl
 #
-# Converts data from an xmltv output file to VDR - tested with 1.2.6
+# Converts data from an xmltv output file to VDR - tested with 1.7
 #
 # The TCP SVDRSend and Receive functions have been used from the getskyepg.pl
 # Plugin for VDR.
@@ -18,14 +18,17 @@
 #
 # See the README file for copyright information and how to reach the author.
 
-# $Id: xmltv2vdr.pl 1.0.7 2007/04/13 20:01:04 psr Exp $
+# based on  $Id: xmltv2vdr.pl 1.0.7 2007/04/13 20:01:04 psr Exp $
 
+# xmltv2vdr.pl adapted to :
+# - automatic prosses http://xmltv.dyndns.org  tnt.xml file
+# - handle multiple source from same channel with same egp info ( "TF1","TF1 HD" ...)
+# by Guillaume DELVIT guiguid@free.fr - 24/11/2011
 
 #use strict;
 use Getopt::Std;
 use Time::Local;
 use Date::Manip;
-#use Data::Dumper;
 
 my $sim=0;
 my $verbose=0;
@@ -162,9 +165,8 @@ sub EpgSend
 
 sub ProcessEpg
 {
-    my %chanId;
-    my %chanName;
-    my %chanMissing;
+    my @chanId;
+    my @canMissing;
     my $chanline;
     my $epgfreq;
     while ( $chanline=<CHANNELS> )
@@ -190,7 +192,6 @@ sub ProcessEpg
                 $chanline =~ m/:(.*$)/;
                 if ($verbose == 1 ) { warn("Ignoring header: $1\n"); }
             } else {
-
 
                 #Here we'll try to find $channel_name from TNT.XML !
 		    my $channel_id;
@@ -220,7 +221,6 @@ sub ProcessEpg
 		        	$xmltv_channel_name=$channel_id;
 		        	}
 		    	    
-		            #exit(0) if ($xmltv_channel_name);
 		            }
 
                 if (($verbose == 1) && (!$xmltv_channel_name) ) { warn("Ignoring channel: $channel_name_min, no xmltv info\n"); } 
@@ -232,20 +232,17 @@ sub ProcessEpg
         my @channels = split ( /,/, $xmltv_channel_name);
          foreach my $myChannel ( @channels )
         {
-        	$chanName{$myChannel} = $channel_name;
         	# Save the Channel Entry
         	if ($nid>0) 
         	{
-                $chanId{$myChannel} = "C $source-$nid-$tid-$sid $channel_name\r\n";
+                push @chanId , [$myChannel,"C $source-$nid-$tid-$sid $channel_name\r\n",$channel_name];
         	}
         	else 
         	{
-                $chanId{$myChannel} = "C $source-$nid-$epgfreq-$sid $channel_name\r\n";
+                push @chanId , [$myChannel,"C $source-$nid-$epgfreq-$sid $channel_name\r\n",$channel_name];
         	}
         }
     }
-# print Dumper(%chanName);
-# exit(0);
     
     # Set XML parsing variables    
     my $chanevent = 0;
@@ -277,12 +274,22 @@ sub ProcessEpg
         if ( ($xmlline =~ /\<programme/o ) && ( $xmlline !~ /clumpidx=\"1\/2\"/o ) && ( $chanevent == 0 ) )
         {
             my ( $chan ) = ( $xmlline =~ m/channel\=\"(.*?)\"/ );
-            if ( !exists ($chanId{$chan}) )
+            
+            my $exist=-1;
+            for $i ( 0 .. $#chanId ) {
+                    $exist=$i if ($chanId[$i][0] eq $chan);
+                            }
+            if ( $exist<0 )
             {
-                if ( !exists ($chanMissing{$chan}) )
-                {
+                
+               my $exist2=-1;
+                for $i ( 0 .. $#chanMissing ) {
+                        $exist2=$i if ($chanMissing[$i][0] eq $chan);
+                                }
+                if ( $exist2<0 )
+                    {
                     if ($verbose == 1 ) { warn("$chan unknown in channels.conf\n"); }
-                    $chanMissing{$chan} = 1;
+	                push(@chanMissing,[$chan,1]);
                 }
                 next;
             }
@@ -296,7 +303,13 @@ sub ProcessEpg
             if ( ( $chanCur ne "" ) && ( $chanCur ne $chan ) )
             {
                 $atLeastOneEpg = 1;
-                EpgSend ($chanId{$chanCur}, $chanName{$chanCur}, $epgText, $nbEventSent);
+                
+                # we need to send event for all channels with same epg TF1, TF1 HD ....
+                for $i ( 0 .. $#chanId ) {
+                    if ($chanId[$i][0] eq $chanCur) {
+            		    EpgSend ($chanId[$i][1],$chanId[$i][2], $epgText, $nbEventSent);
+			}
+                    }
                 $epgText = "";
                 $nbEventSent = 0;
             }
@@ -472,7 +485,12 @@ sub ProcessEpg
     
     if ( $atLeastOneEpg )
     {
-        EpgSend ($chanId{$chanCur}, $chanName{$chanCur}, $epgText, $nbEventSent);
+    # we need to send event for all channels with same epg TF1, TF1 HD ....
+    for $i ( 0 .. $#chanId ) {
+            if ($chanId[$i][0] eq $chanCur) {
+    		    EpgSend ($chanId[$i][1],$chanId[$i][2], $epgText, $nbEventSent);
+		}
+            }
     }
 }
 
