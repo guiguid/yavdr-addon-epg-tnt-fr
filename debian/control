@@ -7,6 +7,6 @@ Build-Depends: debhelper (>= 7), cdbs
 
 Package: yavdr-addon-epg-tnt-fr
 Architecture: all
-Depends: ${yavdr-startup},${misc:Depends}, yavdr-utils, xmltv, libdate-manip-perl, unzip, wget
+Depends: ${yavdr-startup},${misc:Depends}, yavdr-utils, libdate-manip-perl, unzip, wget
 Description: yavdr-addon-epg-tnt-fr
  yavdr-addon-epg-tnt-fr
