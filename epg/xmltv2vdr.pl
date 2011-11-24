@@ -25,6 +25,7 @@
 use Getopt::Std;
 use Time::Local;
 use Date::Manip;
+#use Data::Dumper;
 
 my $sim=0;
 my $verbose=0;
@@ -182,18 +183,54 @@ sub ProcessEpg
         { 
             $epgfreq=$freq;
         }
-        
+        my $channel_more;
+        ($channel_name_min,$channel_more) = split(/;/,$channel_name);
         if (!$xmltv_channel_name) {
-            if(!$channel_name) {
+            if(!$channel_name_min) {
                 $chanline =~ m/:(.*$)/;
                 if ($verbose == 1 ) { warn("Ignoring header: $1\n"); }
             } else {
-                if ($verbose == 1 ) { warn("Ignoring channel: $channel_name, no xmltv info\n"); } 
+
+
+                #Here we'll try to find $channel_name from TNT.XML !
+		    my $channel_id;
+		    foreach $xmlline (@xmllines)
+			{
+    			    chomp $xmlline;
+		            $xmlline=xmltvtranslate($xmlline);
+		            #print "XMLLINE: $xmlline \n";
+		            last if ($xmlline =~ m:\<programm:o); # don't process full file if not need !
+    			    my $xmltv_ch_id = "$1" if ( $xmlline =~ m:\<channel id=\"(.*?)\"\>:o );
+    			    $channel_id = $xmltv_ch_id if ($xmltv_ch_id);
+		            my $xmltv_ch_name = "$1" if ( $xmlline =~ m:\<display-name\>(.*?)\<\/display:o );
+    			    if (($xmltv_ch_name) && ($xmltv_ch_name eq $channel_name_min)) 
+    				{ 
+		        	print "found : $channel_id with $xmltv_ch_name\n";
+		        	$xmltv_channel_name=$channel_id;
+		        	}
+		            my $channel_name_nospace=$channel_name_min;
+		            $channel_name_nospace =~ s/\s//g;
+		            my $xmltv_ch_name_nospace=$xmltv_ch_name;
+		            $xmltv_ch_name_nospace =~ s/\s//g;
+		            
+		    	    if ((!$xmltv_channel_name) && ($xmltv_ch_name) && ( ($channel_name_min =~ m/$xmltv_ch_name/) 
+		    							        || ($channel_name_nospace =~ m/$xmltv_ch_name_nospace/i))) 
+    				{ 
+		        	print "found approx : $channel_id with $xmltv_ch_name\n";
+		        	$xmltv_channel_name=$channel_id;
+		        	}
+		    	    
+		            #exit(0) if ($xmltv_channel_name);
+		            }
+
+                if (($verbose == 1) && (!$xmltv_channel_name) ) { warn("Ignoring channel: $channel_name_min, no xmltv info\n"); } 
+
             }
-            next;
+            # If we haven't find an $xmltv_channel_name, so next
+            next if (!$xmltv_channel_name);
         }
         my @channels = split ( /,/, $xmltv_channel_name);
-        foreach my $myChannel ( @channels )
+         foreach my $myChannel ( @channels )
         {
         	$chanName{$myChannel} = $channel_name;
         	# Save the Channel Entry
@@ -207,6 +244,8 @@ sub ProcessEpg
         	}
         }
     }
+# print Dumper(%chanName);
+# exit(0);
     
     # Set XML parsing variables    
     my $chanevent = 0;
