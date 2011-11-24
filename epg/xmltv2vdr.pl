@@ -195,34 +195,74 @@ sub ProcessEpg
 
                 #Here we'll try to find $channel_name from TNT.XML !
 		    my $channel_id;
+		    my $found=0;
+		    
+		    for $pass (1..2) {
 		    foreach $xmlline (@xmllines)
 			{
+    			    last if ($found!=0);
     			    chomp $xmlline;
 		            $xmlline=xmltvtranslate($xmlline);
-		            #print "XMLLINE: $xmlline \n";
 		            last if ($xmlline =~ m:\<programm:o); # don't process full file if not need !
     			    my $xmltv_ch_id = "$1" if ( $xmlline =~ m:\<channel id=\"(.*?)\"\>:o );
     			    $channel_id = $xmltv_ch_id if ($xmltv_ch_id);
-		            my $xmltv_ch_name = "$1" if ( $xmlline =~ m:\<display-name\>(.*?)\<\/display:o );
-    			    if (($xmltv_ch_name) && ($xmltv_ch_name eq $channel_name_min)) 
-    				{ 
-		        	print "found : $channel_id with $xmltv_ch_name\n";
-		        	$xmltv_channel_name=$channel_id;
-		        	}
-		            my $channel_name_nospace=$channel_name_min;
-		            $channel_name_nospace =~ s/\s//g;
-		            my $xmltv_ch_name_nospace=$xmltv_ch_name;
-		            $xmltv_ch_name_nospace =~ s/\s//g;
-		            
-		    	    if ((!$xmltv_channel_name) && ($xmltv_ch_name) && ( ($channel_name_min =~ m/$xmltv_ch_name/) 
-		    							        || ($channel_name_nospace =~ m/$xmltv_ch_name_nospace/i))) 
-    				{ 
-		        	print "found approx : $channel_id with $xmltv_ch_name\n";
-		        	$xmltv_channel_name=$channel_id;
-		        	}
-		    	    
+		            my $xmltv_ch_name = "$1" if ( $xmlline =~ m:\<display-name\>(.*?)\<\/display:oi );
+    			    # on doit comparer $xmltv_ch_name a $channel_name_min
+    			    
+    			    # on sort les accents et autres 
+    			    
+    			    $xmltv_ch_name =~ s/é/e/g;
+    			    $xmltv_ch_name =~ s/è/e/g;
+    			    $xmltv_ch_name =~ s/ê/e/g;
+    			    $xmltv_ch_name =~ s/à/e/g;
+    			    $xmltv_ch_name =~ s/â/e/g;
+    			    $channel_name_min =~ s/é/e/g;
+    			    $channel_name_min =~ s/è/e/g;
+    			    $channel_name_min =~ s/ê/e/g;
+    			    $channel_name_min =~ s/à/e/g;
+    			    $channel_name_min =~ s/â/e/g;
+    			    $xmltv_ch_name =~ s/\+//g;
+    			    $channel_name_min =~ s/\+//g;
+    			    $xmltv_ch_name =~ s/\W//g;
+    			    $channel_name_min =~ s/\W//g;
+    			    $xmltv_ch_name =~ s/\s//g;
+    			    $channel_name_min =~ s/\s//g;
+    			    $channel_name_min =~ s/HD$//;
+    			    
+    			    
+    			    my $lg_xml = length($xmltv_ch_name);
+    			    my $lg_ch  = length($channel_name_min);
+    			    
+    			    if ($xmltv_ch_name) { # if we have something
+    				
+    				# pass 1
+    				if (($pass==1) &&
+    				    ($lg_xml eq $lg_ch) &&
+    				    ($xmltv_ch_name =~ m/$channel_name_min/i))
+    				 {
+				
+				    print "found : $channel_id with $xmltv_ch_name for $channel_name_min\n";
+		        	    $xmltv_channel_name=$channel_id;
+		        	    $found=1;
+		        	    #exit(0);
+    				 }
+    				# pass 
+        			if (($pass==2) &&
+    				    ($xmltv_channel_name ne $channel_id) && (
+    				    ($xmltv_ch_name =~ m/$channel_name_min/i) ||
+    				    (substr($xmltv_ch_name,0,$lg_ch) eq $channel_name_min) ||
+    				    (substr($channel_name_min,0,$lg_xml) eq $xmltv_ch_name)
+    				    ))
+    				 {
+				    print "found approx : $channel_id with $xmltv_ch_name for $channel_name_min\n";
+		        	    $xmltv_channel_name=$channel_id;
+		        	    $found=1;
+    				 }
+    			    
+    			    }
+    			    }
+    			    
 		            }
-
                 if (($verbose == 1) && (!$xmltv_channel_name) ) { warn("Ignoring channel: $channel_name_min, no xmltv info\n"); } 
 
             }
@@ -243,7 +283,7 @@ sub ProcessEpg
         	}
         }
     }
-    
+
     # Set XML parsing variables    
     my $chanevent = 0;
     my $dc = 0;
