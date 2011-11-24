@@ -1,0 +1,7 @@
+#!/bin/sh                                                                                                               
+                                                                                                                        
+cp /etc/crontab /tmp/crontab.tmp
+cat /tmp/crontab.tmp |grep -v yavdr-addon-epg-tnt-fr > /etc/crontab
+rm /tmp/crontab.tmp
+
+#DEBHELPER#

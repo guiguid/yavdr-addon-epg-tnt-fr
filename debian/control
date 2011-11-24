@@ -1,0 +1,12 @@
+Source: yavdr-addon-epg-tnt-fr
+Section: misc
+Priority: optional
+Maintainer: Ubuntu Developers <ubuntu-devel-discuss@lists.ubuntu.com>
+Standards-Version: 3.8.4
+Build-Depends: debhelper (>= 7), cdbs
+
+Package: yavdr-addon-epg-tnt-fr
+Architecture: all
+Depends: ${yavdr-startup},${misc:Depends}, yavdr-utils, xmltv, libdate-manip-perl, unzip, wget
+Description: yavdr-addon-epg-tnt-fr
+ yavdr-addon-epg-tnt-fr
