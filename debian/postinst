@@ -4,10 +4,13 @@ case "$1" in
     configure)
 
         chmod +x /var/lib/vdr/epg/*
-        
+        chown vdr:vdr /var/lib/vdr/epg
+	chown vdr:vdr -R /var/lib/vdr/epg/*
+	
 	
         echo "# Update EGP # yavdr-addon-epg-tnt-fr
         15 20 */2 * * vdr /bin/bash /var/lib/vdr/epg/update-epg.sh # yavdr-addon-epg-tnt-fr " >> /etc/crontab
+        
         
         ;;
 
